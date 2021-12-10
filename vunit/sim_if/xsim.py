@@ -12,6 +12,7 @@ from __future__ import print_function
 import logging
 import os
 from os.path import join
+from pathlib import Path
 import shutil
 import subprocess
 from ..ostools import Process
@@ -19,7 +20,6 @@ from . import SimulatorInterface, StringOption, BooleanOption
 from ..exceptions import CompileError
 from shutil import copyfile
 LOGGER = logging.getLogger(__name__)
-
 
 class XSimInterface(SimulatorInterface):
     """
@@ -36,6 +36,19 @@ class XSimInterface(SimulatorInterface):
         BooleanOption("xsim.enable_glbl"),
     ]
 
+    @staticmethod
+    def add_arguments(parser):
+        """
+        Add command line arguments
+        """
+        group = parser.add_argument_group("xsim", description="Xsim specific flags")
+        group.add_argument(
+            "--vivado-vcd-path", default='', help="VCD waveform output path.",
+        )
+        group.add_argument(
+            "--vivado-vcd-enable", action="store_true", help="Enable VCD waveform generation."
+        )
+
     @classmethod
     def from_args(cls,
                   output_path,  # pylint: disable=unused-argument
@@ -44,7 +57,13 @@ class XSimInterface(SimulatorInterface):
         Create instance from args namespace
         """
         prefix = cls.find_prefix()
-        return cls(prefix=prefix, output_path=output_path, gui=args.gui)
+        return cls(
+            prefix=prefix, 
+            output_path=output_path, 
+            gui=args.gui, 
+            vcd_path=args.vivado_vcd_path,
+            vcd_enable=args.vivado_vcd_enable
+        )
 
     @classmethod
     def find_prefix_from_path(cls):
@@ -60,7 +79,14 @@ class XSimInterface(SimulatorInterface):
             return tool_name
         raise Exception('Cannot find %s' % tool_name)
 
-    def __init__(self, prefix, output_path, gui=False):
+    def __init__(
+        self, 
+        prefix, 
+        output_path, 
+        gui=False,
+        vcd_path='',
+        vcd_enable=False
+    ):
         super(XSimInterface, self).__init__(output_path, gui)
         self._prefix = prefix
         self._libraries = {}
@@ -68,6 +94,9 @@ class XSimInterface(SimulatorInterface):
         self._xvhdl = self.check_tool('xvhdl')
         self._xelab = self.check_tool('xelab')
         self._vivado = self.check_tool('vivado')
+        self._xsim = self.check_tool('xsim')
+        self._vcd_path = vcd_path
+        self._vcd_enable = vcd_enable
 
     def setup_library_mapping(self, project):
         """
@@ -132,11 +161,25 @@ class XSimInterface(SimulatorInterface):
         """
         Simulate with entity as top level using generics
         """
+
+        runpy_dir = os.path.abspath(str(Path(output_path)) + "../../../../")
+
+        if self._vcd_path == '':
+            vcd_path = os.path.abspath(str(Path(output_path))) + '/wave.vcd'
+        else:
+            if os.path.isabs(self._vcd_path):
+                vcd_path = self._vcd_path
+            else:
+                vcd_path = os.path.abspath(str(Path(runpy_dir))) + '/' + self._vcd_path
+
+        print(vcd_path)
+
+
         cmd = [join(self._prefix, self._xelab)]
         cmd += ["-debug", "typical"]
         cmd += self.libraries_command()
-        if not (elaborate_only or self._gui):
-            cmd += ["--runall"]
+        # if not (elaborate_only or self._gui):
+        #     cmd += ["--runall"]
 
         cmd += ["--notimingchecks"]
         cmd += ["--nospecify"]
@@ -145,9 +188,16 @@ class XSimInterface(SimulatorInterface):
         cmd += ["--incr"]
         cmd += ["--sdfnowarn"]
 
-        cmd += ["%s.%s" % (config.library_name, config.entity_name)]
+        snapshot = 'vunit_test'
+        cmd += ['--snapshot', snapshot]
 
         enable_glbl = config.sim_options.get(self.name + '.enable_glbl', None)
+
+        if (enable_glbl == True):
+            cmd += ["%s.%s" % (config.library_name, 'test_verilog_tb')]
+        else:
+            cmd += ["%s.%s" % (config.library_name, config.entity_name)]
+
         if (enable_glbl == True):
             cmd += ["%s.%s" % (config.library_name, 'glbl')]
 
@@ -162,7 +212,6 @@ class XSimInterface(SimulatorInterface):
         if not os.path.exists(output_path):
             os.makedirs(output_path)
         status = True
-        print(cmd)
         try:
             resources = config.get_resources()
             for x in resources:
@@ -173,35 +222,55 @@ class XSimInterface(SimulatorInterface):
             proc.consume_output()
         except Process.NonZeroExitCode:
             status = False
-        if self._gui:
-            tcl_file = os.path.join(output_path, "xsim_startup.tcl")
-            vivado_cmd = [join(self._prefix, self._vivado),
-                          "-mode", "gui",
-                          "-source", tcl_file]
-            if not os.path.isfile(tcl_file):
-                with open(tcl_file, 'w+') as xsim_startup_file:
-                    xsim_startup_file.write("set_part xc7a12tcpg238-3\n")
-                    if (enable_glbl == True):
-                        xsim_startup_file.write("xsim " +
-                                                ("%s.%s" % (config.library_name,
-                                                            config.entity_name)) +
-                                                            "#" + config.library_name + ".glbl" +
-                                                "\nadd_wave {{/" + config.entity_name + "}} "
-                                                "\nrun all"
-                                                "\n")
-                    else:
-                        xsim_startup_file.write("xsim " +
-                                                ("%s.%s" % (config.library_name,
-                                                            config.entity_name)) +
-                                                "\nadd_wave {{/" + config.entity_name + "}} "
-                                                "\nrun all"
-                                                "\n")
-            print("out_path: " + str(output_path))
-            print("vivado_cmd: " + str(vivado_cmd))
-            try:
-                subprocess.call(vivado_cmd, cwd=output_path)
-            except Process.NonZeroExitCode:
-                pass
-            assert False
 
+        try:
+            # Execute XSIM
+            if not elaborate_only:
+                tcl_file = os.path.join(output_path, "xsim_startup.tcl")
+
+                # Gui support
+                if self._gui:
+                    # XSIM binary
+                    vivado_cmd = [join(self._prefix, self._xsim)]
+                    # Snapshot
+                    vivado_cmd += [snapshot]
+                    # Mode GUI
+                    vivado_cmd += ['--gui']
+                    # Include tcl
+                    vivado_cmd += ['--tclbatch', tcl_file]
+
+                # Command line
+                else:
+                    vivado_cmd = [join(self._prefix, self._vivado)]
+                    # TCL source
+                    vivado_cmd += ["-source", tcl_file]
+                    # Mode TCL
+                    vivado_cmd += ["-mode", "tcl"]
+
+                with open(tcl_file, 'w+') as xsim_startup_file:
+                    if os.path.exists(vcd_path):
+                        os.remove(vcd_path)
+
+                    if self._gui == True:
+                        if self._vcd_enable:
+                            xsim_startup_file.write(f'open_vcd {vcd_path}\n')
+                            xsim_startup_file.write('log_vcd *\n')
+                    else:
+                        vcd_command = ''
+                        if self._vcd_enable:
+                            vcd_command = f"-vcdfile {vcd_path}"
+
+                        cmd_snap = "catch {xsim " + snapshot + f" {vcd_command} -runall" + " }\n"
+                        xsim_startup_file.write(cmd_snap)
+                        xsim_startup_file.write('quit\n')
+
+                print(" ".join(vivado_cmd))
+
+                # subprocess.call(vivado_cmd, cwd=output_path, stderr=subprocess.STDOUT)
+
+                proc = Process(vivado_cmd, cwd=output_path)
+                proc.consume_output()
+
+        except Process.NonZeroExitCode:
+            status = False
         return status
