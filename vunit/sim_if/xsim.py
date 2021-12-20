@@ -169,6 +169,9 @@ class XSimInterface(SimulatorInterface):
         Simulate with entity as top level using generics
         """
 
+
+        print("wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww")
+
         runpy_dir = os.path.abspath(str(Path(output_path)) + "../../../../")
 
         print('vcd_path = ' + self._vcd_path)
