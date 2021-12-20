@@ -98,6 +98,9 @@ class XSimInterface(SimulatorInterface):
         self._vcd_path = vcd_path
         self._vcd_enable = vcd_enable
 
+        print("vcd_enable0 " + str(vcd_enable))
+
+
     def setup_library_mapping(self, project):
         """
         Setup library mapping
@@ -164,6 +167,9 @@ class XSimInterface(SimulatorInterface):
 
         runpy_dir = os.path.abspath(str(Path(output_path)) + "../../../../")
 
+        print('vcd_path = ' + self._vcd_path)
+        print('vcd_enable = ' + str(self._vcd_enable))
+
         if self._vcd_path == '':
             vcd_path = os.path.abspath(str(Path(output_path))) + '/wave.vcd'
         else:
@@ -172,8 +178,6 @@ class XSimInterface(SimulatorInterface):
             else:
                 vcd_path = os.path.abspath(str(Path(runpy_dir))) + '/' + self._vcd_path
 
-        print(vcd_path)
-        print('vcd_enable = ' + str(self._vcd_enable))
 
 
         cmd = [join(self._prefix, self._xelab)]
