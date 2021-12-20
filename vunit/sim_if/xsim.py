@@ -263,8 +263,11 @@ class XSimInterface(SimulatorInterface):
                         cmd_snap = "catch {xsim " + snapshot + f" {vcd_command} -runall" + " }\n"
                         xsim_startup_file.write(cmd_snap)
                         xsim_startup_file.write('quit\n')
+                
 
                 print(" ".join(vivado_cmd))
+                print('vcd_enable = ' + str(self._vcd_enable))
+                print('tcl_file = ' + tcl_file)
 
                 # subprocess.call(vivado_cmd, cwd=output_path, stderr=subprocess.STDOUT)
 
