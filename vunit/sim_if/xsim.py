@@ -43,10 +43,10 @@ class XSimInterface(SimulatorInterface):
         """
         group = parser.add_argument_group("xsim", description="Xsim specific flags")
         group.add_argument(
-            "--vivado-vcd-path", default='', help="VCD waveform output path.",
+            "--xsim-vcd-path", default='', help="VCD waveform output path.",
         )
         group.add_argument(
-            "--vivado-vcd-enable", action="store_true", help="Enable VCD waveform generation."
+            "--xsim-vcd-enable", action="store_true", help="Enable VCD waveform generation."
         )
 
     @classmethod
@@ -58,16 +58,16 @@ class XSimInterface(SimulatorInterface):
 
         print("asdfasdfasdfasdfafasdf")
 
-        print(args.vivado_vcd_path)
-        print(args.vivado_vcd_enable)
+        print(args.xsim_vcd_path)
+        print(args.xsim_vcd_enable)
 
 
         return cls(
             prefix=prefix, 
             output_path=output_path, 
             gui=args.gui, 
-            vcd_path=args.vivado_vcd_path,
-            vcd_enable=args.vivado_vcd_enable
+            vcd_path=args.xsim_vcd_path,
+            vcd_enable=args.xsim_vcd_enable
         )
 
     @classmethod
