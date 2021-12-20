@@ -173,6 +173,7 @@ class XSimInterface(SimulatorInterface):
                 vcd_path = os.path.abspath(str(Path(runpy_dir))) + '/' + self._vcd_path
 
         print(vcd_path)
+        print('vcd_enable = ' + str(self._vcd_enable))
 
 
         cmd = [join(self._prefix, self._xelab)]
