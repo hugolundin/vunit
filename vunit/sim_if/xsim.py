@@ -56,12 +56,6 @@ class XSimInterface(SimulatorInterface):
         """
         prefix = cls.find_prefix()
 
-        print("asdfasdfasdfasdfafasdf")
-
-        print(args.xsim_vcd_path)
-        print(args.xsim_vcd_enable)
-
-
         return cls(
             prefix=prefix, 
             output_path=output_path, 
@@ -102,9 +96,6 @@ class XSimInterface(SimulatorInterface):
         self._xsim = self.check_tool('xsim')
         self._vcd_path = vcd_path
         self._vcd_enable = vcd_enable
-
-        print("vcd_enable0 " + str(vcd_enable))
-
 
     def setup_library_mapping(self, project):
         """
@@ -169,14 +160,7 @@ class XSimInterface(SimulatorInterface):
         """
         Simulate with entity as top level using generics
         """
-
-
-        print("wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww")
-
         runpy_dir = os.path.abspath(str(Path(output_path)) + "../../../../")
-
-        print('vcd_path = ' + self._vcd_path)
-        print('vcd_enable = ' + str(self._vcd_enable))
 
         if self._vcd_path == '':
             vcd_path = os.path.abspath(str(Path(output_path))) + '/wave.vcd'
@@ -279,11 +263,8 @@ class XSimInterface(SimulatorInterface):
                 
 
                 print(" ".join(vivado_cmd))
-                print('vcd_enable = ' + str(self._vcd_enable))
-                print('tcl_file = ' + tcl_file)
 
                 # subprocess.call(vivado_cmd, cwd=output_path, stderr=subprocess.STDOUT)
-
                 proc = Process(vivado_cmd, cwd=output_path)
                 proc.consume_output()
 
