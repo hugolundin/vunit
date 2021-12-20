@@ -57,6 +57,10 @@ class XSimInterface(SimulatorInterface):
         Create instance from args namespace
         """
         prefix = cls.find_prefix()
+
+        print("asdfasdfasdfasdfafasdf")
+
+
         return cls(
             prefix=prefix, 
             output_path=output_path, 
