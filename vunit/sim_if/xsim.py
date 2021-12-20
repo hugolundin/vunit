@@ -58,6 +58,9 @@ class XSimInterface(SimulatorInterface):
 
         print("asdfasdfasdfasdfafasdf")
 
+        print(args.vivado_vcd_path)
+        print(args.vivado_vcd_enable)
+
 
         return cls(
             prefix=prefix, 
