@@ -184,6 +184,8 @@ class XSimInterface(SimulatorInterface):
         cmd += ["--relax"]
         cmd += ["--incr"]
         cmd += ["--sdfnowarn"]
+        cmd += ["--stats"]
+        cmd += ["--O0"]
 
         snapshot = 'vunit_test'
         cmd += ['--snapshot', snapshot]

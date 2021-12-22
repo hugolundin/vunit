@@ -988,6 +988,7 @@ avoid location preprocessing of other functions sharing name with a VUnit log or
             dont_catch_exceptions=self._args.dont_catch_exceptions,
             no_color=self._args.no_color,
             resources=self._resources,
+            threads_delay = self._args.threads_delay
         )
         runner.run(test_cases)
 

@@ -237,6 +237,16 @@ def _create_argument_parser(description=None, for_documentation=False):
     )
 
     parser.add_argument(
+        "-d",
+        "--threads-delay",
+        type=positive_int,
+        default=0,
+        help=(
+            "Delay (in seconds) introduced between each concurrent launches. Useful for Xsim"
+        ),
+    )
+
+    parser.add_argument(
         "-u",
         "--unique-sim",
         action="store_true",

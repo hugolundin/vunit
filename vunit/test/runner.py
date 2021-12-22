@@ -16,6 +16,7 @@ import sys
 import time
 import logging
 import string
+import time
 from contextlib import contextmanager
 from .. import ostools
 from ..hashing import hash_string
@@ -43,6 +44,7 @@ class TestRunner(object):  # pylint: disable=too-many-instance-attributes
         dont_catch_exceptions=False,
         no_color=False,
         resources=[],
+        threads_delay=0
     ):
         self._lock = threading.Lock()
         self._fail_fast = fail_fast
@@ -62,6 +64,7 @@ class TestRunner(object):  # pylint: disable=too-many-instance-attributes
         self._stderr = sys.stderr
         self._dont_catch_exceptions = dont_catch_exceptions
         self._no_color = no_color
+        self._threads_delay = threads_delay
 
         ostools.PROGRAM_STATUS.reset()
 
@@ -115,6 +118,7 @@ class TestRunner(object):  # pylint: disable=too-many-instance-attributes
                 )
                 threads.append(new_thread)
                 new_thread.start()
+                time.sleep(self._threads_delay)
 
             # Run one worker in main thread such that P=1 is not multithreaded
             self._run_thread(write_stdout, scheduler, num_tests, True)
