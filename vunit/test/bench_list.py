@@ -121,4 +121,4 @@ def tb_filter(design_unit):
             design_unit.file_name,
         )
 
-    return has_runner_cfg
+    return has_runner_cfg and has_tb_name
