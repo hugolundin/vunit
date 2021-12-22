@@ -193,7 +193,7 @@ class XSimInterface(SimulatorInterface):
         enable_glbl = config.sim_options.get(self.name + '.enable_glbl', None)
 
         if (enable_glbl == True):
-            cmd += ["%s.%s" % (config.library_name, 'test_verilog')]
+            cmd += ["%s.%s" % (config.library_name, 'test_verilog_tb')]
         else:
             cmd += ["%s.%s" % (config.library_name, config.entity_name)]
 
