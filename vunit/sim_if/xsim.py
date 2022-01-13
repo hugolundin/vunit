@@ -15,6 +15,7 @@ from os.path import join
 from pathlib import Path
 import shutil
 import subprocess
+import threading
 from ..ostools import Process
 from . import SimulatorInterface, StringOption, BooleanOption
 from ..exceptions import CompileError
@@ -96,6 +97,7 @@ class XSimInterface(SimulatorInterface):
         self._xsim = self.check_tool('xsim')
         self._vcd_path = vcd_path
         self._vcd_enable = vcd_enable
+        self._lock = threading.Lock()
 
     def setup_library_mapping(self, project):
         """
@@ -217,8 +219,13 @@ class XSimInterface(SimulatorInterface):
                 file_name = os.path.basename(x)
                 copyfile(x,output_path+"/"+file_name)
 
-            proc = Process(cmd, cwd=output_path)
-            proc.consume_output()
+            with self._lock:
+                proc = Process(cmd, cwd=output_path)
+                proc.consume_output()
+
+            with self._lock:
+                proc = Process(cmd, cwd=output_path)
+                proc.consume_output()
         except Process.NonZeroExitCode:
             status = False
 
