@@ -60,4 +60,4 @@ def version():
     return VERSION
 
 
-VERSION = "4.4.1rc0-xsim"
+VERSION = "4.4.1"
