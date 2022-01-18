@@ -49,6 +49,9 @@ class XSimInterface(SimulatorInterface):
         group.add_argument(
             "--xsim-vcd-enable", action="store_true", help="Enable VCD waveform generation."
         )
+        group.add_argument(
+            "--xsim-not-xelab-limit", action="store_true", help="Disable the xelab current processes limit when NUM_THREADS > 1."
+        )
 
     @classmethod
     def from_args(cls, args, output_path, **kwargs):
@@ -62,7 +65,8 @@ class XSimInterface(SimulatorInterface):
             output_path=output_path, 
             gui=args.gui, 
             vcd_path=args.xsim_vcd_path,
-            vcd_enable=args.xsim_vcd_enable
+            vcd_enable=args.xsim_vcd_enable,
+            not_xelab_limit=args.xsim_not_xelab_limit
         )
 
     @classmethod
@@ -85,7 +89,8 @@ class XSimInterface(SimulatorInterface):
         output_path, 
         gui=False,
         vcd_path='',
-        vcd_enable=False
+        vcd_enable=False,
+        not_xelab_limit=False
     ):
         super(XSimInterface, self).__init__(output_path, gui)
         self._prefix = prefix
@@ -97,6 +102,7 @@ class XSimInterface(SimulatorInterface):
         self._xsim = self.check_tool('xsim')
         self._vcd_path = vcd_path
         self._vcd_enable = vcd_enable
+        self._not_xelab_limit = not_xelab_limit
         self._lock = threading.Lock()
 
     def setup_library_mapping(self, project):
@@ -219,13 +225,14 @@ class XSimInterface(SimulatorInterface):
                 file_name = os.path.basename(x)
                 copyfile(x,output_path+"/"+file_name)
 
-            with self._lock:
+            if not self._not_xelab_limit is True:
+                with self._lock:
+                    proc = Process(cmd, cwd=output_path)
+                    proc.consume_output()
+            else:
                 proc = Process(cmd, cwd=output_path)
                 proc.consume_output()
 
-            with self._lock:
-                proc = Process(cmd, cwd=output_path)
-                proc.consume_output()
         except Process.NonZeroExitCode:
             status = False
 
@@ -244,14 +251,14 @@ class XSimInterface(SimulatorInterface):
                     vivado_cmd += ['--gui']
                     # Include tcl
                     vivado_cmd += ['--tclbatch', tcl_file]
-
                 # Command line
                 else:
-                    vivado_cmd = [join(self._prefix, self._vivado)]
-                    # TCL source
-                    vivado_cmd += ["-source", tcl_file]
-                    # Mode TCL
-                    vivado_cmd += ["-mode", "tcl"]
+                   # XSIM binary
+                    vivado_cmd = [join(self._prefix, self._xsim)]
+                    # Snapshot
+                    vivado_cmd += [snapshot]
+                    # Include tcl
+                    vivado_cmd += ['--tclbatch', tcl_file]
 
                 with open(tcl_file, 'w+') as xsim_startup_file:
                     if os.path.exists(vcd_path):
@@ -262,14 +269,11 @@ class XSimInterface(SimulatorInterface):
                             xsim_startup_file.write(f'open_vcd {vcd_path}\n')
                             xsim_startup_file.write('log_vcd *\n')
                     else:
-                        vcd_command = ''
                         if self._vcd_enable:
-                            vcd_command = f"-vcdfile {vcd_path}"
-
-                        cmd_snap = "catch {xsim " + snapshot + f" {vcd_command} -runall" + " }\n"
-                        xsim_startup_file.write(cmd_snap)
-                        xsim_startup_file.write('quit\n')
-                
+                            xsim_startup_file.write(f'open_vcd {vcd_path}\n')
+                            xsim_startup_file.write('log_vcd *\n')
+                        xsim_startup_file.write('run all\n')
+                        xsim_startup_file.write('quit\n')                
 
                 print(" ".join(vivado_cmd))
 
