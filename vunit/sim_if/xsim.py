@@ -62,9 +62,9 @@ class XSimInterface(SimulatorInterface):
         prefix = cls.find_prefix()
 
         return cls(
-            prefix=prefix, 
-            output_path=output_path, 
-            gui=args.gui, 
+            prefix=prefix,
+            output_path=output_path,
+            gui=args.gui,
             vcd_path=args.xsim_vcd_path,
             vcd_enable=args.xsim_vcd_enable,
             xelab_limit=args.xsim_xelab_limit
@@ -85,9 +85,9 @@ class XSimInterface(SimulatorInterface):
         raise Exception('Cannot find %s' % tool_name)
 
     def __init__(
-        self, 
-        prefix, 
-        output_path, 
+        self,
+        prefix,
+        output_path,
         gui=False,
         vcd_path='',
         vcd_enable=False,
@@ -208,10 +208,7 @@ class XSimInterface(SimulatorInterface):
 
         enable_glbl = config.sim_options.get(self.name + '.enable_glbl', None)
 
-        if (enable_glbl == True):
-            cmd += ["%s.%s" % (config.library_name, 'test_verilog')]
-        else:
-            cmd += ["%s.%s" % (config.library_name, config.entity_name)]
+        cmd += ["%s.%s" % (config.library_name, config.entity_name)]
 
         if (enable_glbl == True):
             cmd += ["%s.%s" % (config.library_name, 'glbl')]
@@ -284,7 +281,7 @@ class XSimInterface(SimulatorInterface):
                             xsim_startup_file.write(f'open_vcd {vcd_path}\n')
                             xsim_startup_file.write('log_vcd *\n')
                         xsim_startup_file.write('run all\n')
-                        xsim_startup_file.write('quit\n')                
+                        xsim_startup_file.write('quit\n')
 
                 print(" ".join(vivado_cmd))
 
