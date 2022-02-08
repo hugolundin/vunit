@@ -206,10 +206,7 @@ class XSimInterface(SimulatorInterface):
 
         enable_glbl = config.sim_options.get(self.name + ".enable_glbl", None)
 
-        if enable_glbl == True:
-            cmd += [f"{config.library_name}.test_verilog"]
-        else:
-            cmd += [f"{config.library_name}.{config.entity_name}"]
+        cmd += [f"{config.library_name}.{config.entity_name}"]
 
         if enable_glbl == True:
             cmd += [f"{config.library_name}.glbl"]
