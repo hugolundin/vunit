@@ -86,18 +86,24 @@ class SimulatorInterface(object):  # pylint: disable=too-many-public-methods
         paths = path.split(pathsep)
         ext = Path(executable).suffix
 
-        if (sys.platform == "win32" or os.name == "os2") and (ext != ".exe"):
-            executable = executable + ".exe"
+        if (sys.platform == "win32" or os.name == "os2") and (ext != ".exe") and (ext != ".bat"):
+            # On windows look for both .exe and .bat files. xsim uses .bat files while other simulators
+            # stick to .exe files
+            extensions = [".bat", ".exe"]
+        else:
+            extensions = [""]
 
         result = []
-        if isfile(executable):
-            result.append(executable)
+        for extension in extensions:
+            executable = executable + extension
+            if isfile(executable):
+                result.append(executable)
 
-        for prefix in paths:
-            file_name = str(Path(prefix) / executable)
-            if isfile(file_name):
-                # the file exists, we have a shot at spawn working
-                result.append(file_name)
+            for prefix in paths:
+                file_name = str(Path(prefix) / executable)
+                if isfile(file_name):
+                    # the file exists, we have a shot at spawn working
+                    result.append(file_name)
         return result
 
     @classmethod

@@ -134,6 +134,7 @@ class test_runner;
 
    function void cleanup();
       $fwrite(trace_fd, "test_suite_done\n");
+      $fclose(trace_fd);
       exit_without_errors = 1;
       $stop(0);
    endfunction

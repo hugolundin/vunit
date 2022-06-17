@@ -15,11 +15,13 @@ from os.path import join
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import threading
 from ..ostools import Process
 from . import SimulatorInterface, StringOption, BooleanOption, ListOfStringOption
 from ..exceptions import CompileError
 from shutil import copyfile
+import pathlib
 LOGGER = logging.getLogger(__name__)
 
 class XSimInterface(SimulatorInterface):
@@ -76,6 +78,18 @@ class XSimInterface(SimulatorInterface):
         Find first valid xsim toolchain prefix
         """
         return cls.find_toolchain(["xsim"])
+
+    def _format_command_for_os(cls, cmd):
+        """
+        xsim for windows requires some arguments to be in quotes, which
+        have been added in libraries_command. However, the check_output
+        function will escape these when calling xsim (as it should),
+        meaning that xsim doesn't understand its input arguments.
+        The workaround is to create one string here and use that one for windows.
+        """
+        if (sys.platform == "win32" or os.name == "os2"):
+            cmd = " ".join(cmd)
+        return cmd
 
     def check_tool(self, tool_name):
         if os.path.exists(os.path.join(self._prefix, tool_name + '.bat')):
@@ -134,14 +148,26 @@ class XSimInterface(SimulatorInterface):
         cmd = []
         for library_name, library_path in self._libraries.items():
             if library_path:
-                cmd += ["-L", '%s=%s' % (library_name, library_path)]
+                if (sys.platform == "win32" or os.name == "os2"):
+                    # xsim for Windows requires:
+                    #     1) extra quotes around the library path argument
+                    #     2) the library to be in  <something>/xsim.dir/work
+                    cmd += ["-L", '"%s=%s"' % (library_name, os.path.join(library_path, "xsim.dir", "work"))]
+                else:
+                    cmd += ["-L", '%s=%s' % (library_name, library_path)]
             else:
                 cmd += ["-L", library_name]
         return cmd
 
     def work_library_argument(self, source_file):
-        return ["-work", "%s=%s" % (source_file.library.name,
-                                    source_file.library.directory)]
+        if (sys.platform == "win32" or os.name == "os2"):
+            # xsim for Windows requires:
+            #     1) extra quotes around the library path argument
+            #     2) the library to be in  <something>/xsim.dir/work
+            return ["-work", '"%s=%s"' % (source_file.library.name, os.path.join(source_file.library.directory, "xsim.dir", "work"))]
+        else:
+            return ["-work", "%s=%s" % (source_file.library.name, source_file.library.directory)]
+
 
     def compile_vhdl_file_command(self, source_file):
         """
@@ -150,7 +176,7 @@ class XSimInterface(SimulatorInterface):
         cmd = [join(self._prefix, self._xvhdl), source_file.name, '-2008']
         cmd += self.work_library_argument(source_file)
         cmd += self.libraries_command()
-        return cmd
+        return self._format_command_for_os(cmd)
 
     def compile_verilog_file_command(self, source_file, cmd):
         """
@@ -162,7 +188,7 @@ class XSimInterface(SimulatorInterface):
             cmd += ["--include", "%s" % include_dir]
         for define_name, define_val in source_file.defines.items():
             cmd += ["--define", "%s=%s" % (define_name, define_val)]
-        return cmd
+        return self._format_command_for_os(cmd)
 
     def _xelab_extra_args(self, config):
         """
@@ -220,7 +246,11 @@ class XSimInterface(SimulatorInterface):
         shutil.copytree(dirname, os.path.join(output_path,
                                               os.path.basename(dirname)))
         for generic_name, generic_value in config.generics.items():
-            cmd += ["--generic_top", '%s=%s' % (generic_name, generic_value)]
+            if (sys.platform == "win32" or os.name == "os2"):
+                # xsim for windows require extra quotation around this argument
+                cmd += ["--generic_top", '"%s=%s"' % (generic_name, generic_value)]
+            else:
+                cmd += ["--generic_top", '%s=%s' % (generic_name, generic_value)]
         if not os.path.exists(output_path):
             os.makedirs(output_path)
 
@@ -232,6 +262,8 @@ class XSimInterface(SimulatorInterface):
             for x in resources:
                 file_name = os.path.basename(x)
                 copyfile(x,output_path+"/"+file_name)
+
+            cmd = self._format_command_for_os(cmd)
 
             if self._xelab_limit is True:
                 with self._lock:
@@ -258,7 +290,7 @@ class XSimInterface(SimulatorInterface):
                     # Mode GUI
                     vivado_cmd += ['--gui']
                     # Include tcl
-                    vivado_cmd += ['--tclbatch', tcl_file]
+                    vivado_cmd += ['--tclbatch', str(Path(tcl_file).as_posix())]
                 # Command line
                 else:
                    # XSIM binary
@@ -266,7 +298,7 @@ class XSimInterface(SimulatorInterface):
                     # Snapshot
                     vivado_cmd += [snapshot]
                     # Include tcl
-                    vivado_cmd += ['--tclbatch', tcl_file]
+                    vivado_cmd += ['--tclbatch', str(Path(tcl_file).as_posix())]
 
                 with open(tcl_file, 'w+') as xsim_startup_file:
                     if os.path.exists(vcd_path):
@@ -285,7 +317,8 @@ class XSimInterface(SimulatorInterface):
 
                 print(" ".join(vivado_cmd))
 
-                # subprocess.call(vivado_cmd, cwd=output_path, stderr=subprocess.STDOUT)
+                vivado_cmd = self._format_command_for_os(vivado_cmd)
+
                 proc = Process(vivado_cmd, cwd=output_path)
                 proc.consume_output()
 
