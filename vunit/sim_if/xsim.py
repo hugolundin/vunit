@@ -9,10 +9,12 @@ Interface for Vivado XSim simulator
 """
 
 from __future__ import print_function
+import copy
 import logging
 import os
 from os.path import join
 from pathlib import Path
+import re
 import shutil
 import sys
 import threading
@@ -110,6 +112,7 @@ class XSimInterface(SimulatorInterface):
         self._xelab = self.check_tool("xelab")
         self._vivado = self.check_tool("vivado")
         self._xsim = self.check_tool("xsim")
+        self._xsim_initfile = os.path.join(self._prefix, "..", "data", "xsim", "xsim.ini")
         self._vcd_path = vcd_path
         self._vcd_enable = vcd_enable
         self._xelab_limit = xelab_limit
@@ -122,6 +125,37 @@ class XSimInterface(SimulatorInterface):
 
         for library in project.get_libraries():
             self._libraries[library.name] = library.directory
+
+
+        # For Windows, if a library is added with -L <libname>=<libpath>, xsim actually puts (and looks for)
+        # the library in <libname>=<libpath>/xsim.dir/work
+        #
+        # For precompiled libraries, we therefore cannot add them with a path, because xsim will still
+        # look in the xsim.dir/work folder, which doesn't exist in the precompiled sources.
+        #
+        # The workaround is to find any user added precompiled libraries, and remove the path to them,
+        # which will later mean that the library will only be added as -L <libname>, i.e. without the path.
+        if (sys.platform == "win32" or os.name == "os2"):
+            lib_pattern = re.compile(r"(?P<name>\w+)\s*=\s*(?P<path>.+)")
+            std_lib_init_file = []
+            # Search the xsim_ip.ini file to see if user-added libraries are precompiled
+            with open(
+                self._xsim_initfile, "r"
+            ) as ips:
+                for line in ips:
+                    m = lib_pattern.match(line)
+                    if m:
+                        # We have found a precompiled version
+                        std_lib_init_file.append(m.group("name"))
+
+            new_sel_library = copy.deepcopy(self._libraries)
+
+            # Remove the path for any precompiled libraries
+            for library_name, _ in self._libraries.items():
+                if library_name in std_lib_init_file:
+                    new_sel_library[library_name] = None
+
+            self._libraries = copy.deepcopy(new_sel_library)
 
     def compile_source_file_command(self, source_file):
         """
@@ -232,7 +266,7 @@ class XSimInterface(SimulatorInterface):
 
         cmd += [f"{config.library_name}.{config.entity_name}"]
 
-        if enable_glbl == True:
+        if enable_glbl:
             cmd += [f"{config.library_name}.glbl"]
 
         timescale = config.sim_options.get(self.name + ".timescale", None)
@@ -299,7 +333,7 @@ class XSimInterface(SimulatorInterface):
                     if os.path.exists(vcd_path):
                         os.remove(vcd_path)
 
-                    if self._gui == True:
+                    if self._gui:
                         if self._vcd_enable:
                             xsim_startup_file.write(f"open_vcd {vcd_path}\n")
                             xsim_startup_file.write("log_vcd *\n")
