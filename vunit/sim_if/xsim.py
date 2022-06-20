@@ -294,8 +294,6 @@ class XSimInterface(SimulatorInterface):
 
             cmd = self._format_command_for_os(cmd)
 
-            cmd = self._format_command_for_os(cmd)
-
             if self._xelab_limit is True:
                 with self._lock:
                     proc = Process(cmd, cwd=output_path)
