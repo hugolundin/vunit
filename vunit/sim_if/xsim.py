@@ -40,6 +40,7 @@ class XSimInterface(SimulatorInterface):
         StringOption("xsim.timescale"),
         BooleanOption("xsim.enable_glbl"),
         ListOfStringOption("xsim.xelab_flags"),
+        StringOption("xsim.view")
     ]
 
     @staticmethod
@@ -57,6 +58,12 @@ class XSimInterface(SimulatorInterface):
         group.add_argument(
             "--xsim-xelab-limit", action="store_true", help="Limit the xelab current processes to 1 thread."
         )
+        group.add_argument(
+            "--xsim-view",
+            default="",
+            help="Path to a wave configuration file that should be loaded in Vivado on GUI simulation.",
+        )            
+
 
     @classmethod
     def from_args(cls, args, output_path, **kwargs):
@@ -72,6 +79,7 @@ class XSimInterface(SimulatorInterface):
             vcd_path=args.xsim_vcd_path,
             vcd_enable=args.xsim_vcd_enable,
             xelab_limit=args.xsim_xelab_limit,
+            view=args.xsim_view
         )
 
     @classmethod
@@ -103,7 +111,7 @@ class XSimInterface(SimulatorInterface):
             return tool_name
         raise Exception(f"Cannot find {tool_name}")
 
-    def __init__(self, prefix, output_path, gui=False, vcd_path="", vcd_enable=False, xelab_limit=False):
+    def __init__(self, prefix, output_path, gui=False, vcd_path="", vcd_enable=False, xelab_limit=False, view=""):
         super().__init__(output_path, gui)
         self._prefix = prefix
         self._libraries = {}
@@ -117,6 +125,7 @@ class XSimInterface(SimulatorInterface):
         self._vcd_enable = vcd_enable
         self._xelab_limit = xelab_limit
         self._lock = threading.Lock()
+        self._view = view
 
     def setup_library_mapping(self, project):
         """
@@ -246,6 +255,14 @@ class XSimInterface(SimulatorInterface):
             else:
                 vcd_path = os.path.abspath(str(Path(runpy_dir))) + "/" + self._vcd_path
 
+        if self._view:
+            if os.path.isabs(self._view):
+                view = self._view
+            else:
+                view = os.path.abspath(str(Path(runpy_dir))) + "/" + self._view
+        else:
+            view = None
+
         cmd = [join(self._prefix, self._xelab)]
         cmd += ["-debug", "typical"]
         cmd += self.libraries_command()
@@ -328,6 +345,9 @@ class XSimInterface(SimulatorInterface):
                     vivado_cmd += [snapshot]
                     # Include tcl
                     vivado_cmd += ['--tclbatch', str(Path(tcl_file).as_posix())]
+
+                if view:
+                    vivado_cmd += ['--view', str(Path(view).as_posix())]
 
                 with open(tcl_file, "w+") as xsim_startup_file:
                     if os.path.exists(vcd_path):
